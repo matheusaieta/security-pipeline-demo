@@ -1,0 +1,34 @@
+name: Automated Security Testing Gatekeeper
+
+on: [push, pull_request]
+
+jobs:
+  security-scans:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy Code From Repository
+        uses: actions/checkout@v4
+
+      # 1. SECRET DETECTION: Checks for exposed passwords
+      - name: Run Secret Scanner
+        uses: truffleshog/trufflehog-actions@main
+        continue-on-error: true # Prevents the tutorial from completely locking you out
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+      # 2. SUPPLY CHAIN SCAN (SCA): Checks requirements.txt for old libraries
+      - name: Run Dependency Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+
+      # 3. STATIC ANALYSIS (SAST): Checks app.py code syntax lines
+      - name: Run Code Analyzer (Semgrep)
+        run: |
+          pip install semgrep
+          semgrep scan --config=auto
